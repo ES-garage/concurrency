@@ -39,7 +39,9 @@ enum class algorithm
     moody_camel,
     signal_tree,
     tbb,
-    lockfree
+    lockfree,
+    es,
+    fake
 };
 
 
@@ -212,4 +214,43 @@ struct bench_adapter<algorithm::signal_tree>
     }
 
     signal_set_type signalSet_;
+};
+
+
+//==============================================================================
+// fake adapter presents the same uint64 facade as the queue wrappers;
+// Push succeeds immediatly without storing Id. Pop always returns 0.  
+template <>
+struct bench_adapter<algorithm::fake>
+{
+    static auto constexpr name = "Fake";
+    using signal_index    = std::uint64_t;
+    using selection_hint  = std::uint64_t;
+
+    explicit bench_adapter(std::size_t capacity) :
+        _capacity(capacity)
+    {
+    }
+
+    void push(signal_index)
+    {
+    }
+
+    template <typename BeforePublish>
+    void push(signal_index, BeforePublish && beforePublish)
+    {
+        beforePublish();
+    }
+
+    signal_index pop(selection_hint & hint)
+    {
+        return 0ull;
+    }
+
+    std::size_t capacity() const noexcept
+    {
+        return _capacity;
+    }
+
+    std::size_t _capacity;
 };

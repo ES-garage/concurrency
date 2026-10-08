@@ -1,3 +1,5 @@
+#define ES_ONLY
+
 // hardcoding cores to use ... i know, its ugly.  my test machine has
 // ecores and I want to make sure that I'm using only those for consistent
 // performance during development.
@@ -25,23 +27,28 @@ int main(int, char **)
     auto testDuration = std::chrono::seconds(1);
 
     // -------- throughput --------
+    throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+#ifndef ES_ONLY
     throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
+#endif
     throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
-
     // -------- adversarial throughput --------
+#ifndef ES_ONLY
     adversarial_throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::tbb>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::lockfree>(numThreads, testDuration);
+#endif
     adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
-
     // -------- service distance --------
+#ifndef ES_ONLY
     service_distance_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
+#endif
     service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     return 0;

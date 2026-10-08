@@ -39,7 +39,7 @@ namespace benchmark_affinity
     inline void set_cpu_affinity(int cpuId) noexcept
     {
 #if defined(__linux__)
-        bcpp::concurrency::system::set_cpu_affinity(cpuId);
+        bcpp::system::set_cpu_affinity(cpuId);
 #else
         (void)cpuId;
 #endif

@@ -92,7 +92,7 @@ namespace throughput_benchmark
         long double value
     )
     {
-        return fmt::format("{:.4f}", static_cast<double>(value));
+        return fmt::format("{:>.4f}", static_cast<double>(value));
     }
 
 
@@ -106,8 +106,8 @@ namespace throughput_benchmark
         auto text = cv_text(value);
         auto padding = (width > text.size()) ? std::string(width - text.size(), ' ') : std::string{};
         if (value >= cv_bad_threshold)
-            return fmt::format("{}{}{}{}", ansi_cv_bad, text, ansi_reset, padding);
-        return text + padding;
+            return fmt::format("{}{}{}{}", padding, ansi_cv_bad, text, ansi_reset);
+        return padding + text;
     }
 
 
@@ -157,7 +157,7 @@ namespace throughput_benchmark
 
         std::cout << fmt::format
         (
-            "{:<15}{:<20.0f}{:<25.0f}{}{}\n",
+            "{:>15}{:>20.0f}{:>25.0f}{}{}\n",
             numThreads,
             signalsPerSecond,
             signalsPerThreadSecond,
@@ -266,12 +266,12 @@ namespace throughput_benchmark
 
         std::cout << fmt::format
         (
-            "{:<15}{:<20}{:<25}{:<22}{:<18}\n",
-            "Thread_Count:",
-            "Signals_per_Second:",
-            "Signals_per_Thread/sec:",
-            "Signal_Selection_cv:",
-            "Thread_Work_cv:"
+            "{:>15}{:>20}{:>25}{:>22}{:>18}\n",
+            "Thread_Count",
+            "Signals_per_Second",
+            "Signals_per_Thread/sec",
+            "Signal_Selection_cv",
+            "Thread_Work_cv"
         );
 
         for (auto i = 1ull; i <= numThreads; ++i)
