@@ -197,7 +197,8 @@ namespace throughput_benchmark
             (
                 [&, threadId = index++](auto)
                 {
-                    benchmark_affinity::set_cpu_affinity(cores[threadId]);
+                    //benchmark_affinity::set_cpu_affinity(cores[threadId]);
+                    benchmark_affinity::set_cpu_affinity(threadId);
                     std::vector<std::uint64_t> localSelectedCount(capacity, 0);
                     std::uint64_t localThreadSelectionCount = 0;
 
