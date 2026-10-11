@@ -70,17 +70,6 @@ namespace adversarial_throughput_benchmark
 
 
     //==============================================================================
-    template <algorithm Algorithm>
-    inline std::string algorithm_name()
-    {
-        if constexpr (Algorithm == algorithm::signal_tree)
-            return fmt::format("{}<{}>", bench_adapter<Algorithm>::name, signal_tree_size);
-        else
-            return std::string{bench_adapter<Algorithm>::name};
-    }
-
-
-    //==============================================================================
     inline auto gather_stats(auto const & input)
         -> std::tuple<std::uint64_t, long double, long double, long double>
     {
@@ -129,7 +118,7 @@ namespace adversarial_throughput_benchmark
         printed = true;
         auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(testDuration).count();
 
-        benchmark_affinity::print_environment_once(cores, numThreads);
+        benchmark_affinity::print_environment_once(numThreads);
 
         std::cout << "==================================================================================\n";
         std::cout << "Benchmark: Adversarial Throughput\n";
@@ -175,12 +164,24 @@ namespace adversarial_throughput_benchmark
             threadCvColumn);
     }
 
-
     //==============================================================================
-    template <algorithm Algorithm>
+    void preactivate(auto& adapter, const auto& placement)
+    {
+        auto worker = adapter.create_worker(0, 1);
+
+        for (auto c = 0ull; c < active_signal_count; ++c)
+        {
+            using signal_index = typename std::remove_reference_t<decltype(adapter)>::signal_index;
+            auto startIndex = c % cycle_length;
+            auto startPosition = c + startIndex * active_signal_count;
+            worker.push(signal_index{placement.physical(startPosition)});
+        }
+    }
+    
+    //==============================================================================
+    template <typename container_type>
     void run_benchmark(std::size_t numThreads, std::chrono::nanoseconds testDuration)
     {
-        using container_type = bench_adapter<Algorithm>;
         using signal_index   = typename container_type::signal_index;
 
         placement_type placement;
@@ -197,13 +198,7 @@ namespace adversarial_throughput_benchmark
         }
 
         auto queue = std::make_unique<container_type>(capacity);
-
-        for (auto c = 0ull; c < active_signal_count; ++c)
-        {
-            auto startIndex = c % cycle_length;
-            auto startPosition = c + startIndex * active_signal_count;
-            queue->push(signal_index{placement.physical(startPosition)});
-        }
+        preactivate(*queue, placement);
 
         std::atomic<bool> beginTest{false};
         std::atomic<bool> endTest{false};
@@ -220,17 +215,20 @@ namespace adversarial_throughput_benchmark
             thread = std::jthread(
                 [&, threadId = index++](auto)
                 {
-                    benchmark_affinity::set_cpu_affinity(cores[threadId]);
+                    benchmark_affinity::set_cpu_affinity(threadId);
                     std::vector<std::uint64_t> localSelectedCount(capacity, 0);
                     auto localThreadSelectionCount = std::uint64_t{0};
                     ++activeThreadCount;
+                    
+                    auto worker = queue->create_worker(threadId, numThreads);
+
                     while (not beginTest)
                         ;
-                    signal_index selectionHint(threadId * (capacity / numThreads));
+
                     while (not endTest)
                     {
-                        auto x = queue->pop(selectionHint);
-                        queue->push(next[static_cast<std::size_t>(x)]);
+                        auto x = worker.pop();
+                        worker.push(next[static_cast<std::size_t>(x)]);
                         ++localSelectedCount[static_cast<std::size_t>(x)];
                         ++localThreadSelectionCount;
                     }
@@ -276,10 +274,12 @@ namespace adversarial_throughput_benchmark
     template <algorithm Algorithm>
     void benchmark(std::size_t numThreads, std::chrono::nanoseconds testDuration)
     {
+        using container_type = bench_adapter<Algorithm>;
+
         print_configuration_once(testDuration, numThreads);
 
         std::cout << "==================================================================================\n";
-        std::cout << "Algorithm: " << algorithm_name<Algorithm>() << "\n";
+        std::cout << "Algorithm: " << container_type::name() << "\n";
 
         std::cout << fmt::format(
             "{:>15}{:>20}{:>25}{:>22}{:>18}\n",
@@ -290,7 +290,7 @@ namespace adversarial_throughput_benchmark
             "Thread_Work_cv");
 
         for (auto i = 1ull; i <= numThreads; ++i)
-            run_benchmark<Algorithm>(i, testDuration);
+            run_benchmark<container_type>(i, testDuration);
     }
 
 } // namespace adversarial_throughput_benchmark

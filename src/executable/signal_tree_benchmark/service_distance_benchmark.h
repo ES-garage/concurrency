@@ -153,17 +153,6 @@ namespace service_distance_benchmark
 
 
     //==============================================================================
-    template <algorithm Algorithm>
-    inline std::string algorithm_name()
-    {
-        if constexpr (Algorithm == algorithm::signal_tree)
-            return fmt::format("{}<{}>", bench_adapter<Algorithm>::name, signal_tree_size);
-        else
-            return std::string{bench_adapter<Algorithm>::name};
-    }
-
-
-    //==============================================================================
     inline std::string format_anomalous_count
     (
         std::size_t value,
@@ -177,8 +166,8 @@ namespace service_distance_benchmark
             : fmt::format("{} [{:.1f}%]", value, 100.0 * static_cast<double>(value) / static_cast<double>(total));
         auto padding = std::string((text.size() < width) ? width - text.size() : 0, ' ');
         if (value == 0)
-            return text + padding;
-        return fmt::format("{}{}{}{}", ansi, text, ansi_reset, padding);
+            return padding + text;
+        return fmt::format("{}{}{}{}", padding, ansi, text, ansi_reset);
     }
 
 
@@ -201,7 +190,7 @@ namespace service_distance_benchmark
     {
         auto text = format_decimal_text(value);
         auto padding = std::string((text.size() < width) ? width - text.size() : 0, ' ');
-        return text + padding;
+        return padding + text;
     }
 
 
@@ -215,8 +204,8 @@ namespace service_distance_benchmark
         auto text = fmt::format("{:.6f}", value);
         auto padding = std::string((text.size() < width) ? width - text.size() : 0, ' ');
         if (value >= cv_bad_threshold)
-            return fmt::format("{}{}{}{}", ansi_cv_bad, text, ansi_reset, padding);
-        return text + padding;
+            return fmt::format("{}{}{}{}", padding, ansi_cv_bad, text, ansi_reset);
+        return padding + text;
     }
 
 
@@ -258,7 +247,7 @@ namespace service_distance_benchmark
     {
         os << fmt::format
         (
-            "{:<8}{:<12}{:<10}{:<8}{:<8}{:<8}{:<8}{:<8}{:<18}{:<12}{:<12}{:<9}\n",
+            "{:>8}{:>12}{:>10}{:>8}{:>8}{:>8}{:>8}{:>8}{:>18}{:>12}{:>12}{:>9}\n",
             "threads",
             "samples",
             "active",
@@ -311,7 +300,7 @@ namespace service_distance_benchmark
 
         os << fmt::format
         (
-            "{:<8}{:<12}{:<10}{}{}{}{}{}{}{:<12}{:<12}{}\n",
+            "{:>8}{:>12}{:>10}{}{}{}{}{}{}{:>12}{:>12}{}\n",
             threadCount,
             sortedSamples.size(),
             activeSignalCount,
@@ -364,16 +353,22 @@ namespace service_distance_benchmark
     //   clear.  The read-only next[] map alternates each pair forever.
     //
     //==============================================================================
-    template <algorithm Algorithm>
+    
+    void preactivate(auto& queue, const auto& signals)
+    {
+        auto worker = queue.create_worker(0, 1);
+        for (const auto& signal : signals)
+            worker.push(signal);
+    }
+    
+    template <typename container_type>
     void run_benchmark
     (
         std::size_t numThreads,
         std::chrono::nanoseconds testDuration
     )
     {
-        using container_type = bench_adapter<Algorithm>;
-        using selection_hint = typename container_type::selection_hint;
-        using signal_index   = typename container_type::signal_index;
+        using signal_index  = typename container_type::signal_index;
 
         // Target K = signals active in the shared queue at any moment.
         auto activeSignalCount = target_num_signals;
@@ -388,6 +383,7 @@ namespace service_distance_benchmark
         auto idOrder = shuffled_indices(capacity, layout_seed);
 
         std::vector<signal_index> nextSignal(capacity, signal_index{});
+        std::vector<signal_index> activeSignals;
         std::vector<std::size_t> participatingIds;
         participatingIds.reserve(2 * activeSignalCount);
 
@@ -400,9 +396,11 @@ namespace service_distance_benchmark
             nextSignal[static_cast<std::size_t>(activeId)] = clearId;
             nextSignal[static_cast<std::size_t>(clearId)]  = activeId;
             participatingIds.push_back(static_cast<std::size_t>(activeId));
+            activeSignals.push_back(activeId);
             participatingIds.push_back(static_cast<std::size_t>(clearId));
-            queue->push(activeId);
         }
+
+        preactivate(*queue, activeSignals);
 
         // Shared per-signal timestamps.  Set at push, read at pop.
         std::vector<std::atomic<std::uint64_t>> signalTimestamp(capacity);
@@ -427,7 +425,7 @@ namespace service_distance_benchmark
             (
                 [&, threadId = index++](auto)
                 {
-                    benchmark_affinity::set_cpu_affinity(cores[threadId]);
+                    benchmark_affinity::set_cpu_affinity(threadId);
 
                     auto constexpr max_sample_count = std::size_t{1 << 20};
                     std::vector<std::uint64_t> localSample;
@@ -437,14 +435,14 @@ namespace service_distance_benchmark
                     std::vector<std::uint64_t> localSampledCount(capacity, 0);
                     ++activeThreadCount;
 
+                    auto worker = queue->create_worker(threadId, numThreads);
+
                     while (not beginTest)
                         ;
 
-                    selection_hint selectionHint(threadId * (capacity / numThreads));
-
                     while (not endTest)
                     {
-                        auto x = queue->pop(selectionHint);
+                        auto x = worker.pop();
                         auto xIndex = static_cast<std::size_t>(x);
                         ++localSelectedCount[xIndex];
 
@@ -469,7 +467,7 @@ namespace service_distance_benchmark
                         // it immediately before publication.  This keeps queue-
                         // residence measurement from including backend push
                         // spinning/retry time while y is still invisible.
-                        queue->push
+                        worker.push
                         (
                             y, [&]{signalTimestamp[yIndex].store(globalEpoch.load(std::memory_order_relaxed),std::memory_order_relaxed);}
                         );
@@ -536,15 +534,17 @@ namespace service_distance_benchmark
         std::chrono::nanoseconds testDuration
     )
     {
-        benchmark_affinity::print_environment_once(cores, numThreads);
+        using container_type = bench_adapter<Algorithm>;
+
+        benchmark_affinity::print_environment_once(numThreads);
         print_service_distribution_configuration_once(testDuration, numThreads);
 
         std::cout << "==================================================================================\n";
-        std::cout << "Algorithm: " << algorithm_name<Algorithm>() << "\n";
+        std::cout << "Algorithm: " << container_type::name() << "\n";
         print_service_distribution_header();
 
         for (auto i = 1ull; i <= numThreads; ++i)
-            run_benchmark<Algorithm>(i, testDuration);
+            run_benchmark<container_type>(i, testDuration);
     }
 
 

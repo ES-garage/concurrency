@@ -3,7 +3,7 @@
 // hardcoding cores to use ... i know, its ugly.  my test machine has
 // ecores and I want to make sure that I'm using only those for consistent
 // performance during development.
-int cores[] = {16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
+//int cores[] = {16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31};
 //int cores[] = {16,20,24,28,17,21,25,29,18,22,26,30,19,23,27,31};
 
 int mainCpu = 0;

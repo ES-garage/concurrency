@@ -36,42 +36,16 @@ namespace benchmark_affinity
     }
 
 
-    inline void set_cpu_affinity(int cpuId) noexcept
+    inline void set_cpu_affinity(int threadId) noexcept
     {
 #if defined(__linux__)
-        bcpp::system::set_cpu_affinity(cpuId);
+        bcpp::system::set_cpu_affinity(threadId);
 #else
         (void)cpuId;
 #endif
     }
 
-
-    inline void print_cpu_list(int const * cpuIds, std::size_t count, std::ostream & os = std::cout)
-    {
-        os << "affinity: " << policy() << "\n";
-        os << "cpus: ";
-
-        if (not enabled)
-        {
-            os << "not pinned";
-        }
-        else
-        {
-            for (auto i = std::size_t{0}; i < count; ++i)
-            {
-                if (i != 0)
-                    os << ',';
-
-                os << cpuIds[i];
-            }
-        }
-
-        os << "\n";
-        os << "topology_validation: external\n";
-    }
-
-
-    inline void print_environment_once(int const * cpuIds, std::size_t count, std::ostream & os = std::cout)
+    inline void print_environment_once(std::size_t numThreads, std::ostream & os = std::cout)
     {
         static auto printed = false;
 
@@ -83,8 +57,9 @@ namespace benchmark_affinity
         os << "==================================================================================\n";
         os << ansi_bold;
         os << "Benchmark Environment\n";
-        print_cpu_list(cpuIds, count, os);
         os << ansi_reset;
+        os << "Number of threads: " << numThreads;
+        os << "\n\n";
     }
 
 } // namespace benchmark_affinity

@@ -12,8 +12,10 @@
 //   - using signal_index   = std::uint64_t;
 //   - using selection_hint = std::uint64_t;
 //   - explicit bench_adapter(std::size_t capacity);
-//   - void          push(signal_index);
-//   - signal_index  pop(selection_hint &);
+// Per working thread:
+//   - bench_adapter::worker create_worker(std::size_t worker_thread_id, std::size_t num_threads);
+//   - void          worker.push(signal_index);
+//   - signal_index  worker.pop();
 //
 // The selection_hint parameter is only used by the signal_tree adapter;
 // other backends ignore it.
@@ -25,6 +27,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <fmt/format.h>
 
 
 // signal_tree_size ...
@@ -53,35 +56,44 @@ struct bench_adapter;
 template <>
 struct bench_adapter<algorithm::moody_camel>
 {
-    static auto constexpr name = "MoodyCamel";
     using signal_index   = std::uint64_t;
-    using selection_hint = std::uint64_t;
+
+    static std::string name() { return "MoodyCamel"; }
+
+    struct worker {
+        moodycamel::ConcurrentQueue<signal_index>& queue;
+
+        void push(signal_index signalId)
+        {
+            while (!queue.enqueue(signalId))
+                ;
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index signalId, BeforePublish && beforePublish)
+        {
+            while (true)
+            {
+                beforePublish();
+                if (queue.enqueue(signalId))
+                    return;
+            }
+        }
+
+        signal_index pop()
+        {
+            signal_index result;
+            while (!queue.try_dequeue(result))
+                ;
+            return result;
+        }
+    };
 
     explicit bench_adapter(std::size_t capacity): queue_(capacity * 2){}
-
-    void push(signal_index signalId)
+    
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
-        while (!queue_.enqueue(signalId))
-            ;
-    }
-
-    template <typename BeforePublish>
-    void push(signal_index signalId, BeforePublish && beforePublish)
-    {
-        while (true)
-        {
-            beforePublish();
-            if (queue_.enqueue(signalId))
-                return;
-        }
-    }
-
-    signal_index pop(selection_hint &)
-    {
-        signal_index result;
-        while (!queue_.try_dequeue(result))
-            ;
-        return result;
+        return worker{queue_};
     }
 
     moodycamel::ConcurrentQueue<signal_index> queue_;
@@ -92,30 +104,39 @@ struct bench_adapter<algorithm::moody_camel>
 template <>
 struct bench_adapter<algorithm::tbb>
 {
-    static auto constexpr name = "TBB";
     using signal_index   = std::uint64_t;
-    using selection_hint = std::uint64_t;
+
+    static std::string name() { return "TBB"; }
+
+    struct worker {
+        oneapi::tbb::concurrent_queue<signal_index>& queue;
+
+        void push(signal_index signalId)
+        {
+            queue.push(signalId);
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index signalId, BeforePublish && beforePublish)
+        {
+            beforePublish();
+            queue.push(signalId);
+        }
+
+        signal_index pop()
+        {
+            signal_index result;
+            while (!queue.try_pop(result))
+                ;
+            return result;
+        }
+    };
 
     explicit bench_adapter(std::size_t): queue_(){}
 
-    void push(signal_index signalId)
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
-        queue_.push(signalId);
-    }
-
-    template <typename BeforePublish>
-    void push(signal_index signalId, BeforePublish && beforePublish)
-    {
-        beforePublish();
-        queue_.push(signalId);
-    }
-
-    signal_index pop(selection_hint &)
-    {
-        signal_index result;
-        while (!queue_.try_pop(result))
-            ;
-        return result;
+        return worker{queue_};
     }
 
     oneapi::tbb::concurrent_queue<signal_index> queue_;
@@ -126,38 +147,47 @@ struct bench_adapter<algorithm::tbb>
 template <>
 struct bench_adapter<algorithm::lockfree>
 {
-    static auto constexpr name = "LockFree";
     using signal_index   = std::uint64_t;
-    using selection_hint = std::uint64_t;
+
+    static std::string name() { return "LockFree"; }
+    
+    struct worker {
+        boost::lockfree::queue<signal_index>& queue;
+    
+        void push(signal_index signalId)
+        {
+            while (!queue.push(signalId))
+                ;
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index signalId, BeforePublish && beforePublish)
+        {
+            while (true)
+            {
+                beforePublish();
+                if (queue.push(signalId))
+                    return;
+            }
+        }
+
+        signal_index pop()
+        {
+            signal_index result;
+            while (!queue.pop(result))
+                ;
+            return result;
+        }
+    };
 
     explicit bench_adapter(std::size_t capacity)
         : queue_(capacity)
     {
     }
 
-    void push(signal_index signalId)
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
-        while (!queue_.push(signalId))
-            ;
-    }
-
-    template <typename BeforePublish>
-    void push(signal_index signalId, BeforePublish && beforePublish)
-    {
-        while (true)
-        {
-            beforePublish();
-            if (queue_.push(signalId))
-                return;
-        }
-    }
-
-    signal_index pop(selection_hint &)
-    {
-        signal_index result;
-        while (!queue_.pop(result))
-            ;
-        return result;
+        return worker{queue_};
     }
 
     boost::lockfree::queue<signal_index> queue_;
@@ -171,41 +201,53 @@ struct bench_adapter<algorithm::lockfree>
 template <>
 struct bench_adapter<algorithm::signal_tree>
 {
-    static auto constexpr name = "Signal Tree";
     using signal_set_type = bcpp::concurrency::signal_set<signal_tree_size>;
     using signal_index    = std::uint64_t;
-    using selection_hint  = std::uint64_t;
+    using selection_hint = std::uint64_t;
+
+    static std::string name() { return fmt::format("Signal Tree<{}>", signal_set_type::tree_traits::tree_size); }
+    
+    struct worker {
+        signal_set_type& signalSet;
+        selection_hint hint;
+
+        void push(signal_index signalId)
+        {
+            while (not signalSet.set(bcpp::concurrency::signal_id{signalId}))
+                ;
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index signalId, BeforePublish && beforePublish)
+        {
+            while (true)
+            {
+                beforePublish();
+                if (signalSet.set(bcpp::concurrency::signal_id{signalId}))
+                    return;
+            }
+        }
+
+        signal_index pop()
+        {
+            auto h  = bcpp::concurrency::signal_id{hint};
+            auto id = signalSet.select(h);
+            while (not id.valid())
+                id = signalSet.select(h);
+            hint = static_cast<std::uint64_t>(h);
+            return static_cast<std::uint64_t>(id);
+        }
+    };
 
     explicit bench_adapter(std::size_t capacity)
         : signalSet_(capacity)
     {
     }
 
-    void push(signal_index signalId)
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
-        while (not signalSet_.set(bcpp::concurrency::signal_id{signalId}))
-            ;
-    }
-
-    template <typename BeforePublish>
-    void push(signal_index signalId, BeforePublish && beforePublish)
-    {
-        while (true)
-        {
-            beforePublish();
-            if (signalSet_.set(bcpp::concurrency::signal_id{signalId}))
-                return;
-        }
-    }
-
-    signal_index pop(selection_hint & hint)
-    {
-        auto h  = bcpp::concurrency::signal_id{hint};
-        auto id = signalSet_.select(h);
-        while (not id.valid())
-            id = signalSet_.select(h);
-        hint = static_cast<std::uint64_t>(h);
-        return static_cast<std::uint64_t>(id);
+        assert(worker_thread_id < num_threads);
+        return worker{signalSet_, selection_hint(worker_thread_id * (capacity() / num_threads))};
     }
 
     std::size_t capacity() const noexcept
@@ -223,34 +265,33 @@ struct bench_adapter<algorithm::signal_tree>
 template <>
 struct bench_adapter<algorithm::fake>
 {
-    static auto constexpr name = "Fake";
-    using signal_index    = std::uint64_t;
-    using selection_hint  = std::uint64_t;
+    using signal_index = std::uint64_t;
 
-    explicit bench_adapter(std::size_t capacity) :
-        _capacity(capacity)
+    static std::string name() { return "Fake"; }
+
+    struct worker {
+        void push(signal_index)
+        {
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index, BeforePublish && beforePublish)
+        {
+            beforePublish();
+        }
+
+        signal_index pop()
+        {
+            return 0ull;
+        }
+    };
+
+    explicit bench_adapter(std::size_t capacity)
     {
     }
 
-    void push(signal_index)
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
+        return worker{};
     }
-
-    template <typename BeforePublish>
-    void push(signal_index, BeforePublish && beforePublish)
-    {
-        beforePublish();
-    }
-
-    signal_index pop(selection_hint & hint)
-    {
-        return 0ull;
-    }
-
-    std::size_t capacity() const noexcept
-    {
-        return _capacity;
-    }
-
-    std::size_t _capacity;
 };
