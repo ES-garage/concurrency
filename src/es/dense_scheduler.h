@@ -89,7 +89,7 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
         std::atomic_ref<word> aw{matrix[word_idx]};
         word w = aw.fetch_and(~mask, std::memory_order_acquire);
         
-        // The candidate bit was 0. We need to find the next one. 
+        // Find the next 1 to the left. 
         word next_w = w & ~mask & -mask; // ignore old low bits
         word next_mask = next_w & -next_w; // rightmost one
 

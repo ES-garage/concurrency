@@ -5,6 +5,7 @@
 es::DenseScheduler::DenseScheduler(JobIndex capacity) : jobs_capacity(capacity)
 {
     assert(capacity % CACHE_LINE_BITS == 0);
+    assert(!(capacity & (capacity - 1))); // is power of 2
 
     matrix = static_cast<word*>(
         ::operator new[](capacity / 8, std::align_val_t{CACHE_LINE_SIZE}));
