@@ -19,8 +19,11 @@ es::DenseScheduler::Worker es::DenseScheduler::create_worker(int thread_id, int 
 {
     assert(thread_id >= 0 && thread_id < num_threads);
 
-    JobIndex step = capacity() / (2 * CACHE_LINE_BITS * (num_threads + 1));
+    JobIndex step = capacity() / (2 * CACHE_LINE_BITS * num_threads);
     step *= 2 * thread_id; // even
+
+    if (num_threads < 2)
+        step = 0;
 
     return Worker{*this,
         thread_id * (capacity() / num_threads),
