@@ -1,8 +1,8 @@
+
 add_executable(
     signal_tree_benchmark
     main.cpp
 )
-
 
 target_include_directories(signal_tree_benchmark
 PRIVATE
@@ -16,4 +16,15 @@ PRIVATE
     fmt
     tbb
     system
+    es
+)
+
+target_compile_options(signal_tree_benchmark PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address>
+    $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    -march=native
+)
+
+target_link_options(signal_tree_benchmark PRIVATE
+    $<$<CONFIG:Debug>:-fsanitize=address>
 )

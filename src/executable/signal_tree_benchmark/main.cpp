@@ -17,39 +17,47 @@ int mainCpu = 0;
 #include <chrono>
 #include <cstddef>
 
-
 //==============================================================================
-int main(int, char **)
+int main(int argc, char **argv)
 {
     benchmark_affinity::set_cpu_affinity(mainCpu);
 
-    auto numThreads = std::size_t{16};
+    int numThreads = 16;
     auto testDuration = std::chrono::seconds(1);
 
     // -------- throughput --------
     throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+    
+    throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
+    throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+
+    adversarial_throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
+    adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+
+    service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
+    service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+
 #ifndef ES_ONLY
     throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
-#endif
     throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     // -------- adversarial throughput --------
-#ifndef ES_ONLY
+//    adversarial_throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::tbb>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::lockfree>(numThreads, testDuration);
-#endif
+    adversarial_throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     // -------- service distance --------
-#ifndef ES_ONLY
     service_distance_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
-#endif
+    service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+#endif
 
     return 0;
 }

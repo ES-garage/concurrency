@@ -168,7 +168,7 @@ namespace throughput_benchmark
         std::chrono::nanoseconds testDuration
     )
     {
-        using signal_index   = typename container_type::signal_index;
+        using signal_index = typename container_type::signal_index;
 
         auto activeSignals = make_active_signals();
         auto queue = std::make_unique<container_type>(capacity);
@@ -202,8 +202,8 @@ namespace throughput_benchmark
                     while (not endTest)
                     {
                         auto x = worker.pop();
-                        worker.push(signal_index{static_cast<std::uint64_t>(x)});
-                        ++localSelectedCount[static_cast<std::size_t>(x)];
+                        worker.push(x);
+                        ++localSelectedCount[x];
                         ++localThreadSelectionCount;
                     }
 

@@ -24,6 +24,7 @@
 #include <tbb/concurrent_queue.h>
 #include <boost/lockfree/queue.hpp>
 #include <library/signal_tree.h>
+#include <es/dense_scheduler.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -43,7 +44,7 @@ enum class algorithm
     signal_tree,
     tbb,
     lockfree,
-    es,
+    dense_scheduler,
     fake
 };
 
@@ -258,6 +259,48 @@ struct bench_adapter<algorithm::signal_tree>
     signal_set_type signalSet_;
 };
 
+
+//==============================================================================
+template <>
+struct bench_adapter<algorithm::dense_scheduler>
+{
+    using signal_index = es::DenseScheduler::JobIndex;
+
+    static std::string name() { return "Dense Scheduler"; }
+
+    struct worker {
+        es::DenseScheduler::Worker schedulerWorker;
+
+        void push(signal_index idx)
+        {
+            schedulerWorker.push(idx);
+        }
+
+        template <typename BeforePublish>
+        void push(signal_index idx, BeforePublish && beforePublish)
+        {
+            beforePublish();
+            schedulerWorker.push(idx);
+        }
+
+        signal_index pop()
+        {
+            return schedulerWorker.pop();
+        }
+    };
+
+    explicit bench_adapter(std::size_t capacity) :
+        scheduler(capacity)
+    {
+    }
+
+    worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
+    {
+        return worker{scheduler.create_worker(worker_thread_id, num_threads)};
+    }
+
+    es::DenseScheduler scheduler;
+};
 
 //==============================================================================
 // fake adapter presents the same uint64 facade as the queue wrappers;
