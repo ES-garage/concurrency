@@ -26,16 +26,16 @@ int main(int argc, char **argv)
     auto testDuration = std::chrono::seconds(1);
 
     // -------- throughput --------
-    throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+    // throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
     
-    throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
-    throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+    // throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
+    // throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     adversarial_throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
-    service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
-    service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
+    // service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
+    // service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
 #ifndef ES_ONLY
     throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);

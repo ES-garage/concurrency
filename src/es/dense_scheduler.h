@@ -36,17 +36,17 @@ namespace es {
         private:
             word* matrix;
             JobIndex next_candidate{0};
-            JobIndex step_words;
             JobIndex total_words;
+            int step_mult;
             DenseScheduler& parent;
 
-            Worker(DenseScheduler& scheduler, JobIndex start, std::size_t step) :
+            Worker(DenseScheduler& scheduler, JobIndex start, int step) :
                 matrix(scheduler.matrix),
-                step_words(step * CACHE_LINE_WORDS),
                 total_words(scheduler.capacity() / WORD_BITS),
+                step_mult(step),
                 parent(scheduler)
             {
-                setNextCandidate(step * CACHE_LINE_BITS);
+                setNextCandidate((step * CACHE_LINE_BITS) % parent.capacity());
             }
 
             friend class DenseScheduler;
@@ -108,7 +108,7 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
 
                 if (!(++word_idx & (CACHE_LINE_WORDS - 1))) {
                     // next word is the first word in a cache line
-                    word_idx += step_words;
+                    word_idx *= step_mult;
                     word_idx &= word_idx_mask;
                 }
             }
@@ -129,7 +129,7 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
                 return NO_JOB_INDEX;
 
             if (!(++word_idx & (CACHE_LINE_WORDS - 1))) {
-                word_idx += step_words;
+                word_idx *= step_mult;
                 word_idx &= word_idx_mask;
             }
        }

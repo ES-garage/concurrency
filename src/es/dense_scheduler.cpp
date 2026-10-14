@@ -2,6 +2,13 @@
 
 #include <atomic>
 
+constexpr int primes[] = {
+    1, 5, 13, 17, 29, 37, 41, 53,
+    61, 73, 89, 97, 101, 109, 113, 137
+};
+
+constexpr int NUM_PRIMES = sizeof(primes) / sizeof(primes[0]);
+
 es::DenseScheduler::DenseScheduler(JobIndex capacity) : jobs_capacity(capacity)
 {
     assert(capacity % CACHE_LINE_BITS == 0);
@@ -18,12 +25,10 @@ es::DenseScheduler::~DenseScheduler()
 es::DenseScheduler::Worker es::DenseScheduler::create_worker(int thread_id, int num_threads)
 {
     assert(thread_id >= 0 && thread_id < num_threads);
-
-    JobIndex step = capacity() / (2 * CACHE_LINE_BITS * (num_threads + 1));
-    step *= 2 * thread_id; // even
+    assert(num_threads < NUM_PRIMES);
 
     return Worker{*this,
         thread_id * (capacity() / num_threads),
-        step};
+        primes[thread_id]};
 }
 

@@ -22,7 +22,7 @@ PRIVATE
 target_compile_options(signal_tree_benchmark PRIVATE
     $<$<CONFIG:Debug>:-fsanitize=address>
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
-    -march=native
+   -march=native
 )
 
 target_link_options(signal_tree_benchmark PRIVATE
