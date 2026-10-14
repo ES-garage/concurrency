@@ -168,8 +168,6 @@ namespace throughput_benchmark
         std::chrono::nanoseconds testDuration
     )
     {
-        using signal_index = typename container_type::signal_index;
-
         auto activeSignals = make_active_signals();
         auto queue = std::make_unique<container_type>(capacity);
         preactivate(*queue, activeSignals);
