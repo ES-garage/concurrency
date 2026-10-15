@@ -1,5 +1,3 @@
-#define ES_ONLY
-
 // hardcoding cores to use ... i know, its ugly.  my test machine has
 // ecores and I want to make sure that I'm using only those for consistent
 // performance during development.
@@ -26,25 +24,16 @@ int main(int argc, char **argv)
     auto testDuration = std::chrono::seconds(1);
 
     // -------- throughput --------
-    // throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
-    
-    // throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
-    // throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
-
-    adversarial_throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
-    adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
-
-    // service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
-    // service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
-
-#ifndef ES_ONLY
+    throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+    throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
     throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     // -------- adversarial throughput --------
-//    adversarial_throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+    adversarial_throughput_benchmark::benchmark<algorithm::fake>(numThreads, testDuration);
+    adversarial_throughput_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::tbb>(numThreads, testDuration);
     adversarial_throughput_benchmark::benchmark<algorithm::lockfree>(numThreads, testDuration);
@@ -52,12 +41,12 @@ int main(int argc, char **argv)
     adversarial_throughput_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
 
     // -------- service distance --------
+    service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::moody_camel>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::tbb>        (numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::lockfree>   (numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::dense_scheduler>(numThreads, testDuration);
     service_distance_benchmark::benchmark<algorithm::signal_tree>(numThreads, testDuration);
-#endif
 
     return 0;
 }
