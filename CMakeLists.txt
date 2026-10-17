@@ -24,8 +24,9 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
    AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 13
-   AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14)
-    add_compile_options(
+#    AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 14
+    )
+     add_compile_options(
         $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Release>>:-Wno-error=stringop-overflow>
     )
 endif()
