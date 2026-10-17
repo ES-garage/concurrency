@@ -2,13 +2,6 @@
 
 #include <atomic>
 
-constexpr int primes[] = {
-    1, 5, 13, 17, 29, 37, 41, 53,
-    61, 73, 89, 97, 101, 109, 113, 137
-};
-
-constexpr int NUM_PRIMES = sizeof(primes) / sizeof(primes[0]);
-
 es::DenseScheduler::DenseScheduler(JobIndex capacity) : jobs_capacity(capacity)
 {
     assert(capacity % CACHE_LINE_BITS == 0);
@@ -26,10 +19,13 @@ es::DenseScheduler::~DenseScheduler()
 es::DenseScheduler::Worker es::DenseScheduler::create_worker(int thread_id, int num_threads)
 {
     assert(thread_id >= 0 && thread_id < num_threads);
-    assert(num_threads <= NUM_PRIMES);
+
+    // linear congruential generator: m * x + 1, m mod 4 == 1
+    const unsigned mult = 4 * thread_id + 1;
+    assert(mult < capacity() / CACHE_LINE_BITS);
 
     return Worker{*this,
         thread_id * (capacity() / num_threads),
-        primes[thread_id]};
+        mult };
 }
 

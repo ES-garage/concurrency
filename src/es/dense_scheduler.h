@@ -37,10 +37,10 @@ namespace es {
             word* matrix;
             JobIndex next_candidate{0};
             JobIndex total_words;
-            int step_mult;
+            unsigned  step_mult;
             DenseScheduler& parent;
 
-            Worker(DenseScheduler& scheduler, JobIndex start, int step) :
+            Worker(DenseScheduler& scheduler, JobIndex start, unsigned step) :
                 matrix(scheduler.matrix),
                 total_words(scheduler.capacity() / WORD_BITS),
                 step_mult(step),
