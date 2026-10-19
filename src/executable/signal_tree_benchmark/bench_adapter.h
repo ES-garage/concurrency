@@ -315,18 +315,31 @@ struct bench_adapter<algorithm::fake>
     struct worker {
         void push(signal_index)
         {
+            inc_counter();
         }
 
         template <typename BeforePublish>
         void push(signal_index, BeforePublish && beforePublish)
         {
             beforePublish();
+            inc_counter();
         }
 
         signal_index pop()
         {
+            inc_counter();
             return 0ull;
         }
+
+        void inc_counter()
+        {
+            parent->counter++;
+            // counter++;
+        }
+
+        bench_adapter<algorithm::fake>* parent;
+        std::atomic_int counter{};
+        // volatile int counter{};
     };
 
     explicit bench_adapter(std::size_t capacity)
@@ -335,6 +348,9 @@ struct bench_adapter<algorithm::fake>
 
     worker create_worker(std::size_t worker_thread_id, std::size_t num_threads)
     {
-        return worker{};
+        return worker{this};
     }
+
+    std::atomic_int counter{};
+    // int counter{};
 };
