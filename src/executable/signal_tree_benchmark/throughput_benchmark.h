@@ -145,10 +145,10 @@ namespace throughput_benchmark
 
         std::cout << fmt::format
         (
-            "{:>15}{:>20.0f}{:>25.0f}{}{}\n",
+            "{:>15}{:>20.3f}{:>25.3f}{}{}\n",
             numThreads,
-            signalsPerSecond,
-            signalsPerThreadSecond,
+            signalsPerSecond / 1e6,
+            signalsPerThreadSecond / 1e6,
             signalCvColumn,
             threadCvColumn
         );
@@ -260,8 +260,8 @@ namespace throughput_benchmark
         (
             "{:>15}{:>20}{:>25}{:>22}{:>18}\n",
             "Thread_Count",
-            "Signals_per_Second",
-            "Signals_per_Thread/sec",
+            "MSignals/sec",
+            "MSignals/(Thread*sec)",
             "Signal_Selection_cv",
             "Thread_Work_cv"
         );
