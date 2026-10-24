@@ -81,7 +81,7 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
     JobIndex word_idx = next_candidate / WORD_BITS;
     unsigned bit_idx = next_candidate % WORD_BITS;
     
-    JobIndex visited_words = 0;
+    JobIndex visited_cache_lines = 0;
     JobIndex word_idx_mask = total_words - 1;
     word mask = word{1} << bit_idx;
 
@@ -125,10 +125,10 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
         if (!mask) {
             // to the next word
             mask = 1;
-            if (++visited_words > total_words)
-                return NO_JOB_INDEX;
-
             if (!(++word_idx & (CACHE_LINE_WORDS - 1))) {
+                if (++visited_cache_lines > total_words / CACHE_LINE_WORDS)
+                    return NO_JOB_INDEX;
+
                 word_idx *= step_mult;
                 word_idx &= word_idx_mask;
             }

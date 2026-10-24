@@ -333,7 +333,7 @@ struct bench_adapter<algorithm::fake>
 
         void inc_counter()
         {
-            parent->counter++;
+            // parent->counter++;
             // counter++;
         }
 
