@@ -11,7 +11,7 @@
 
 namespace es {
     class DenseScheduler {
-        using word = uint64_t;
+        using word = uint_fast64_t;
     public:
         using JobIndex = std::uint64_t;
         static constexpr JobIndex INVALID_JOB_INDEX = std::numeric_limits<JobIndex>::max();
@@ -48,7 +48,7 @@ namespace es {
                 step_mult(step),
                 parent(scheduler)
             {
-                setNextCandidate((step * CACHE_LINE_BITS) % parent.capacity());
+                setNextCandidate((step * LINE_BITS) % parent.capacity());
             }
 
             friend class DenseScheduler;
@@ -58,9 +58,9 @@ namespace es {
         JobIndex capacity() const { return jobs_capacity; }
     
     private:
-        static constexpr unsigned CACHE_LINE_SIZE = 64;
-        static constexpr unsigned CACHE_LINE_BITS = CACHE_LINE_SIZE * 8;
-        static constexpr unsigned CACHE_LINE_WORDS = CACHE_LINE_SIZE / sizeof(word); 
+        static constexpr unsigned LINE_SIZE = 2048;
+        static constexpr unsigned LINE_BITS = LINE_SIZE * 8;
+        static constexpr unsigned LINE_WORDS = LINE_SIZE / sizeof(word); 
         static constexpr unsigned WORD_BITS = sizeof(word) * 8;
 
         JobIndex jobs_capacity;
@@ -83,7 +83,7 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
     JobIndex word_idx = next_candidate / WORD_BITS;
     unsigned bit_idx = next_candidate % WORD_BITS;
     
-    JobIndex visited_cache_lines = 0;
+    JobIndex visited_lines = 0;
     JobIndex word_idx_mask = total_words - 1;
     word mask = word{1} << bit_idx;
 
@@ -108,12 +108,12 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
             } else {
                 bit_idx = 0;
 
-                if (!(++word_idx & (CACHE_LINE_WORDS - 1))) {
+                if (!(++word_idx & (LINE_WORDS - 1))) {
                     // next word is the first word in a cache line
                     word_idx *= step_mult;
                     word_idx &= word_idx_mask;
 
-                    _mm_prefetch(matrix + (((word_idx + CACHE_LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
+                    _mm_prefetch(matrix + (((word_idx + LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
                 }
             }
         
@@ -129,14 +129,14 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
         if (!mask) {
             // to the next word
             mask = 1;
-            if (!(++word_idx & (CACHE_LINE_WORDS - 1))) {
-                if (++visited_cache_lines > total_words / CACHE_LINE_WORDS)
+            if (!(++word_idx & (LINE_WORDS - 1))) {
+                if (++visited_lines > total_words / LINE_WORDS)
                     return NO_JOB_INDEX;
 
                 word_idx *= step_mult;
                 word_idx &= word_idx_mask;
                 
-                _mm_prefetch(matrix + (((word_idx + CACHE_LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
+                _mm_prefetch(matrix + (((word_idx + LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
             }
        }
     }
