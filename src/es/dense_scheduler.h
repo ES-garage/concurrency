@@ -7,6 +7,8 @@
 #include <atomic>
 #include <bit>
 
+#include <xmmintrin.h>
+
 namespace es {
     class DenseScheduler {
         using word = uint64_t;
@@ -110,6 +112,8 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
                     // next word is the first word in a cache line
                     word_idx *= step_mult;
                     word_idx &= word_idx_mask;
+
+                    _mm_prefetch(matrix + (((word_idx + CACHE_LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
                 }
             }
         
@@ -131,6 +135,8 @@ inline es::DenseScheduler::JobIndex es::DenseScheduler::Worker::pop()
 
                 word_idx *= step_mult;
                 word_idx &= word_idx_mask;
+                
+                _mm_prefetch(matrix + (((word_idx + CACHE_LINE_WORDS) * step_mult) & word_idx_mask), _MM_HINT_T0);
             }
        }
     }
