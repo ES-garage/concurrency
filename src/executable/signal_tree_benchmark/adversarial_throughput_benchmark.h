@@ -57,7 +57,7 @@ namespace adversarial_throughput_benchmark
     //==============================================================================
 
     static constexpr auto active_signal_count    = std::size_t{1 << 14};
-    static constexpr auto cycle_length           = std::size_t{7};
+    static constexpr auto cycle_length           = std::size_t{16};
     static constexpr auto scheduled_signal_count = active_signal_count * cycle_length;
 
     using placement_type = signal_placement<scheduled_signal_count>;
@@ -150,8 +150,8 @@ namespace adversarial_throughput_benchmark
         auto [threadTotal, threadMean, threadSd, threadCv] =
             gather_stats(std::span(threadStats.data(), threadStats.size()));
         auto seconds = static_cast<double>(duration.count()) / 1'000'000'000.0;
-        auto signalsPerSecond = static_cast<double>(signalTotal) / seconds;
-        auto signalsPerThreadSecond = signalsPerSecond / static_cast<double>(numThreads);
+        auto signalsPerSecond = static_cast<double>(threadTotal) / seconds;
+        auto signalsPerThreadSecond = threadTotal / static_cast<double>(numThreads);
         auto signalCvColumn = cv_column(signalCv, 22);
         auto threadCvColumn = cv_column(threadCv, 18);
 
@@ -229,7 +229,7 @@ namespace adversarial_throughput_benchmark
                     {
                         auto x = worker.pop();
                         worker.push(next[static_cast<std::size_t>(x)]);
-                        ++localSelectedCount[static_cast<std::size_t>(x)];
+                        // ++localSelectedCount[static_cast<std::size_t>(x)];
                         ++localThreadSelectionCount;
                     }
 

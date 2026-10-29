@@ -35,7 +35,7 @@
 // 0 = max speed
 // 1 = balance if using hints for priority
 // 2,3,4, etc ... large trees, trades throughput for greater control over prioritization if ever needed
-static auto constexpr signal_tree_size = 0;
+static auto constexpr signal_tree_size = 1;
 
 
 enum class algorithm

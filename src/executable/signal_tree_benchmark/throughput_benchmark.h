@@ -22,8 +22,8 @@ namespace throughput_benchmark
 {
 
     //==============================================================================
-    static constexpr auto active_signal_count = std::size_t{1 << 16};
-    static constexpr auto sparsity_factor     = std::size_t{4};
+    static constexpr auto active_signal_count = std::size_t{1 << 14};
+    static constexpr auto sparsity_factor     = std::size_t{16};
     static constexpr auto capacity            = active_signal_count * sparsity_factor;
 
     inline constexpr auto ansi_cv_bad   = "\033[1;30;103m";
@@ -138,8 +138,8 @@ namespace throughput_benchmark
         auto [signalTotal, signalMean, signalSd, signalCv] = static_gather_stats(std::span(signalStats.data(), signalStats.size()));
         auto [threadTotal, threadMean, threadSd, threadCv] = static_gather_stats(std::span(threadStats.data(), threadStats.size()));
         auto seconds = static_cast<double>(duration.count()) / 1'000'000'000.0;
-        auto signalsPerSecond = static_cast<double>(signalTotal) / seconds;
-        auto signalsPerThreadSecond = signalsPerSecond / static_cast<double>(numThreads);
+        auto signalsPerSecond = static_cast<double>(threadTotal) / seconds;
+        auto signalsPerThreadSecond = threadTotal / static_cast<double>(numThreads);
         auto signalCvColumn = cv_column(signalCv, 22);
         auto threadCvColumn = cv_column(threadCv, 18);
 
@@ -201,7 +201,7 @@ namespace throughput_benchmark
                     {
                         auto x = worker.pop();
                         worker.push(x);
-                        ++localSelectedCount[x];
+                        // ++localSelectedCount[x];
                         ++localThreadSelectionCount;
                     }
 
